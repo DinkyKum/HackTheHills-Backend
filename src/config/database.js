@@ -8,12 +8,15 @@ const connectDB = async () => {
 
   try {
     await mongoose.connect(process.env.MONGODB_STRING, {
-      serverSelectionTimeoutMS: 5000, // ⏳ Timeout after 5s if MongoDB is unreachable
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Prevents long waits
+      connectTimeoutMS: 10000, // Max time to connect
     });
     console.log("MongoDB Connected");
   } catch (error) {
     console.error("MongoDB Connection Failed:", error.message);
-    process.exit(1);
+    throw new Error("Database Connection Failed");
   }
 };
 
