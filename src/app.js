@@ -1,7 +1,6 @@
 const express = require('express')
 const app = express()
 
-
 const cors=require('cors')
 const connectDB=require("./config/database")
 const profileRouter=require("./routes/profile");
@@ -14,25 +13,19 @@ const viewCompanyRouter = require('./routes/viewCompany');
 require('dotenv').config()
 const port = process.env.PORT
 
+const allowedOrigins = ["http://localhost:5174", "https://farmxpress.vercel.app"];
+
 app.use(cors({
-  origin:"farmxpress.vercel.app",
+  origin: allowedOrigins,
   methods: "GET,POST,PATCH,PUT,DELETE,OPTIONS",
-  credentials:true,
+  credentials: true,
 }));
 
 app.get('/', (req, res) => {
   res.send('We Will Win!')
 })
 
-connectDB().then(() => {
-  console.log("Connection established successfully");
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-  });
-})
-.catch((err) => {
-  console.error("Cannot connect to DB: " + err);
-});
+
 app.use(express.json());
 app.use(cookieParser())
 
@@ -41,3 +34,20 @@ app.use('/', authRouter);
 app.use('/',scheduleDeliveryRouter);
 app.use('/',viewCompanyRouter);
 app.use('/',mergeRouter);
+
+module.exports = async (req, res) => {
+  await connectDB();
+  return app(req, res);
+};
+
+
+if (require.main === module) {
+  connectDB().then(() => {
+    console.log("MongoDB Connected Successfully");
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  }).catch((err) => {
+    console.error("Cannot connect to DB: " + err);
+  });
+}
