@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/database");
 require("dotenv").config();
@@ -16,7 +17,6 @@ const isVercel = !!process.env.VERCEL; // Detect if running on Vercel
 
 const allowedOrigins = ["http://localhost:5174", "https://farmxpress.vercel.app"];
 
-
 app.use(
   cors({
     origin: allowedOrigins,
@@ -24,30 +24,36 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 
-app.use((req, res, next) => {
-  res.setTimeout(5000, () => {
-    console.error("Request Timed Out");
-    res.status(504).json({ error: "Request Timed Out" });
-  });
+// Middleware to ensure DB is connected before handling requests
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState === 0) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error("Database Connection Failed:", err);
+      return res.status(500).json({ error: "Database Connection Failed" });
+    }
+  }
   next();
 });
 
-
+// Base Route
 app.get("/", (req, res) => {
   res.send("All is Well!");
 });
 
-
+// API Routes
 app.use("/", profileRouter);
 app.use("/", authRouter);
 app.use("/", scheduleDeliveryRouter);
 app.use("/", viewCompanyRouter);
 app.use("/", mergeRouter);
 
-//Export for Vercel (Serverless Mode)
+// Vercel Serverless Handler
 if (isVercel) {
   module.exports = async (req, res) => {
     try {
@@ -59,7 +65,7 @@ if (isVercel) {
     }
   };
 } else {
-  // Local Mode
+  // Local Development Mode
   connectDB()
     .then(() => {
       console.log("MongoDB Connected Successfully");
