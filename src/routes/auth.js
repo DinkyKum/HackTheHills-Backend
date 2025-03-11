@@ -46,7 +46,12 @@ authRouter.post('/signup', async (req, res)=>{
         if(isPasswordValid){
             const token= await company.getJWT();
 
-            res.cookie("token", token);
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: true,  
+                sameSite: "none",  
+              });
+              
             res.send(company);
         }
 
