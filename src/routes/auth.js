@@ -18,9 +18,14 @@ authRouter.post('/signup', async (req, res)=>{
       
       await company.save();
       const token= await company.getJWT();
-      res.cookie("token", token);
+ 
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: true,  
+        sameSite: "none",  
+      });
       
-      res.json({message: "Comapny Added Successfully", data: company})
+      res.json({message: "Company Added Successfully", data: company})
      } 
   
      catch(err){
