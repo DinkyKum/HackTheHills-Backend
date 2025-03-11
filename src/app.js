@@ -43,7 +43,6 @@ module.exports = async (req, res) => {
 
 if (require.main === module) {
   connectDB().then(() => {
-    console.log("MongoDB Connected Successfully");
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
