@@ -1,6 +1,6 @@
 const express = require('express')
 const app = express()
-const port = 3000
+
 
 const cors=require('cors')
 const connectDB=require("./config/database")
@@ -11,9 +11,11 @@ const mergeRouter=require('./routes/merge');
 
 const cookieParser=require('cookie-parser');
 const viewCompanyRouter = require('./routes/viewCompany');
+require('dotenv').config()
+const port = process.env.PORT
 
 app.use(cors({
-  origin:"http://localhost:5173",
+  origin:"http://localhost:5174",
   methods: "GET,POST,PATCH,PUT,DELETE,OPTIONS",
   credentials:true,
 }));

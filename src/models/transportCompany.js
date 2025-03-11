@@ -56,7 +56,7 @@ const transportCompanySchema = new Schema({
 
 
 transportCompanySchema.methods.getJWT= async function(){
-    const token= await jwt.sign({_id:this._id}, 'LAD@123', {expiresIn:'7d'});
+    const token= await jwt.sign({_id:this._id}, process.env.JWT_SECRET, {expiresIn:'7d'});
     return token;
 }
 
