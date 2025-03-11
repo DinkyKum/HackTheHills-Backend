@@ -15,7 +15,7 @@ require('dotenv').config()
 const port = process.env.PORT
 
 app.use(cors({
-  origin:"farmxpress-7o5jnlikc-dinky-kumars-projects.vercel.app",
+  origin:"farmxpress.vercel.app",
   methods: "GET,POST,PATCH,PUT,DELETE,OPTIONS",
   credentials:true,
 }));
