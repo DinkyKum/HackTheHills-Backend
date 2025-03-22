@@ -5,37 +5,38 @@ const Truck=require('../models/truck')
 const {companyAuth} =  require('../middlewares/auth');
 const MergeablePair =  require('../models/mergeablePair');
 const MergedSchedule= require('../models/mergedSchedule');
-
+const UnmergedTruck = require('../models/unmergedTruck');
 
 mergeRouter.get('/mergeableSchedule', companyAuth, async (req, res) => {
     try {
         const allRoutes = await Route.find();
         const allTrucks = await Truck.find();
-    
+
         if (allRoutes.length === 0 || allTrucks.length === 0) {
             return res.json({ message: "No trucks available" });
         }
-    
+
         const truckRoutesMap = new Map();
         allRoutes.forEach(route => {
             truckRoutesMap.set(route.truckId.toString(), route.stops);
         });
-    
+
         let usedTrucks = new Set();
         let mergeablePairs = [];
-    
+        let mergedTruckIds = new Set();
+
         for (let i = 0; i < allTrucks.length; i++) {
             if (usedTrucks.has(allTrucks[i]._id.toString())) continue;
-    
+
             for (let j = 0; j < allTrucks.length; j++) {
                 if (i === j || usedTrucks.has(allTrucks[j]._id.toString())) continue;
-    
+
                 const truckA = allTrucks[i];
                 const truckB = allTrucks[j];
-    
+
                 const stopsA = truckRoutesMap.get(truckA._id.toString()) || [];
                 const stopsB = truckRoutesMap.get(truckB._id.toString()) || [];
-    
+
                 let biggerTruck, smallerTruck, biggerStops, smallerStops;
                 if (truckA.totalCapacity >= truckB.totalCapacity) {
                     biggerTruck = truckA;
@@ -48,71 +49,93 @@ mergeRouter.get('/mergeableSchedule', companyAuth, async (req, res) => {
                     biggerStops = stopsB;
                     smallerStops = stopsA;
                 }
-    
+
                 if (!smallerStops.every(stop => biggerStops.includes(stop))) continue;
-    
+
                 let canMerge = true;
                 for (let stop of smallerStops) {
                     const indexBig = biggerStops.indexOf(stop);
                     const indexSmall = smallerStops.indexOf(stop);
-    
+
                     if (indexBig === -1 || indexSmall === -1) continue;
-    
+
                     if (biggerTruck.remainingLoad[indexBig] < smallerTruck.currentLoad[indexSmall]) {
                         canMerge = false;
                         break;
                     }
                 }
-    
+
                 if (canMerge) {
                     mergeablePairs.push({
                         truckOneId: biggerTruck._id.toString(),
                         truckOneLicensePlate: biggerTruck.licensePlate,
-                        truckOneStops: biggerStops, // Add stops for Truck One
+                        truckOneStops: biggerStops,
                         truckTwoId: smallerTruck._id.toString(),
                         truckTwoLicensePlate: smallerTruck.licensePlate,
-                        truckTwoStops: smallerStops // Add stops for Truck Two
+                        truckTwoStops: smallerStops
                     });
-    
+
                     usedTrucks.add(biggerTruck._id.toString());
                     usedTrucks.add(smallerTruck._id.toString());
+                    mergedTruckIds.add(biggerTruck._id.toString());
+                    mergedTruckIds.add(smallerTruck._id.toString());
                     break;
                 }
             }
         }
-    
+
         if (mergeablePairs.length === 0) {
             return res.json({ message: "No mergeable truck pairs found" });
         }
-    
+
         // Fetch existing pairs from the database
         const existingPairs = await MergeablePair.find();
-    
+
         // Convert existing data to a Set for quick lookup
         const existingSet = new Set(existingPairs.map(pair => 
             `${pair.truckOneId}-${pair.truckTwoId}`
         ));
-    
+
         // Filter out only the new pairs that are not in the database
         const newPairs = mergeablePairs.filter(pair => 
             !existingSet.has(`${pair.truckOneId}-${pair.truckTwoId}`)
         );
-    
+
         if (newPairs.length > 0) {
             await MergeablePair.insertMany(newPairs);
         }
-    
+
+        // Fetch all merged pairs from the database
+        const allMergedPairs = await MergeablePair.find();
+        allMergedPairs.forEach(pair => {
+            mergedTruckIds.add(pair.truckOneId.toString());
+            mergedTruckIds.add(pair.truckTwoId.toString());
+        });
+
+        // Filter only the unmerged trucks
+        const unmergedTrucks = allTrucks.filter(truck => !mergedTruckIds.has(truck._id.toString()));
+
+        if (unmergedTrucks.length > 0) {
+            const unmergedTrucksData = unmergedTrucks.map(truck => ({
+                truckId: truck._id,
+                licensePlate: truck.licensePlate,
+                totalCapacity: truck.totalCapacity,
+                currentLoad: truck.currentLoad,
+                stops: truckRoutesMap.get(truck._id.toString()) || []
+            }));
+
+            await UnmergedTruck.deleteMany({}); // Clear previous records
+            await UnmergedTruck.insertMany(unmergedTrucksData);
+        }
+
         res.json({ mergeablePairs });
-    
+
     } catch (error) {
         console.error("Error fetching mergeable trucks:", error);
-        // res.status(500).json({ error: "Internal Server Error",
-            
-        // });
-        res.send(error.message);
+        res.status(500).send(error.message);
     }
-    
 });
+
 
 
 mergeRouter.get('/mergedSchedule', companyAuth, async (req, res) => {
